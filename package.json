@@ -1,0 +1,54 @@
+{
+    "name": "discord-tickets-system",
+    "version": "2.0.0",
+    "description": "Advanced Discord Tickets Bot with Web Management Dashboard",
+    "main": "bot.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon bot.js",
+        "website": "node website/server.js",
+        "dev-web": "nodemon website/server.js",
+        "deploy-commands": "node deploy-commands.js",
+        "setup": "node setup.js"
+    },
+    "keywords": [
+        "discord",
+        "bot",
+        "tickets",
+        "support",
+        "management",
+        "dashboard"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+        "discord.js": "^14.14.1",
+        "@discordjs/builders": "^1.7.0",
+        "@discordjs/rest": "^2.2.0",
+        "express": "^4.18.2",
+        "express-session": "^1.17.3",
+        "passport": "^0.7.0",
+        "passport-discord": "^0.1.4",
+        "ejs": "^3.1.9",
+        "dotenv": "^16.3.1",
+        "fs": "0.0.1-security",
+        "path": "^0.12.7",
+        "moment": "^2.29.4",
+        "mysql2": "^3.6.5",
+        "sequelize": "^6.35.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.2"
+    },
+    "engines": {
+        "node": ">=16.9.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/yourusername/discord-tickets-system.git"
+    },
+    "bugs": {
+        "url": "https://github.com/yourusername/discord-tickets-system/issues"
+    },
+    "homepage": "https://github.com/yourusername/discord-tickets-system#readme"
+}

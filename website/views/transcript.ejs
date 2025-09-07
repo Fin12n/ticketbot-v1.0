@@ -1,0 +1,349 @@
+<!-- website/views/transcript.ejs - Transcript viewer with Discord theme -->
+<div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <!-- Transcript Header -->
+    <div class="glass-effect rounded-t-xl p-6 border border-gray-700 border-b-0">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white mb-2">
+                    📄 Transcript:
+                    <%= transcript.channelName %>
+                </h1>
+                <p class="text-gray-300">
+                    <i class="fas fa-calendar-alt mr-2"></i> Tạo lúc:
+                    <%= new Date(transcript.createdAt).toLocaleString('vi-VN') %>
+                </p>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="exportTranscript()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-download mr-2"></i>
+                    Export
+                </button>
+                <button onclick="printTranscript()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-print mr-2"></i>
+                    Print
+                </button>
+            </div>
+        </div>
+        <div class="text-sm text-gray-400">
+            <span class="mr-4">
+                <i class="fas fa-comment mr-1"></i>
+                <%= transcript.messages.length %> tin nhắn
+            </span>
+            <span>
+                <i class="fas fa-users mr-1"></i>
+                <%= [...new Set(transcript.messages.map(m => m.author.username))].length %> người tham gia
+            </span>
+        </div>
+    </div>
+
+    <!-- Discord-styled Messages Container -->
+    <div class="transcript-container border-l border-r border-gray-700">
+        <div class="transcript-header bg-gray-800">
+            <div class="flex items-center">
+                <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center mr-3">
+                    <i class="fas fa-hashtag text-gray-300 text-sm"></i>
+                </div>
+                <div>
+                    <h2 class="text-white font-semibold">
+                        <%= transcript.channelName %>
+                    </h2>
+                    <p class="text-gray-400 text-sm">Transcript được tạo bởi hệ thống</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="messages-container max-h-96 overflow-y-auto dark-scrollbar">
+            <% transcript.messages.forEach((message, index) => { %>
+                <div class="transcript-message flex <%= index % 2 === 0 ? 'bg-gray-900 bg-opacity-30' : '' %>">
+                    <img class="transcript-avatar" src="<%= message.author.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png' %>" alt="<%= message.author.username %>">
+                    <div class="flex-1">
+                        <div class="flex items-baseline mb-1">
+                            <span class="transcript-username" style="color: <%= getUserColor(message.author.username) %>">
+                                <%= message.author.username %><span class="text-gray-400">#<%= message.author.discriminator %></span>
+                            </span>
+                            <span class="transcript-timestamp ml-2">
+                                <%= new Date(message.timestamp).toLocaleString('vi-VN') %>
+                            </span>
+                        </div>
+                        <div class="transcript-content">
+                            <%= message.content %>
+
+                                <!-- Attachments -->
+                                <% if (message.attachments && message.attachments.length > 0) { %>
+                                    <div class="mt-2">
+                                        <% message.attachments.forEach(attachment => { %>
+                                            <div class="attachment flex items-center p-2 bg-gray-700 rounded-lg mb-2">
+                                                <i class="fas fa-paperclip text-blue-400 mr-2"></i>
+                                                <a href="<%= attachment.url %>" target="_blank" class="text-blue-400 hover:text-blue-300">
+                                                    <%= attachment.name %>
+                                                </a>
+                                            </div>
+                                            <% }); %>
+                                    </div>
+                                    <% } %>
+
+                                        <!-- Embeds -->
+                                        <% if (message.embeds && message.embeds.length > 0) { %>
+                                            <div class="mt-2">
+                                                <% message.embeds.forEach(embed => { %>
+                                                    <div class="embed border-l-4 border-blue-500 bg-gray-800 p-4 rounded-r-lg mb-2">
+                                                        <% if (embed.title) { %>
+                                                            <h4 class="text-blue-400 font-semibold mb-2">
+                                                                <%= embed.title %>
+                                                            </h4>
+                                                            <% } %>
+                                                                <% if (embed.description) { %>
+                                                                    <p class="text-gray-300 text-sm">
+                                                                        <%= embed.description %>
+                                                                    </p>
+                                                                    <% } %>
+                                                                        <% if (embed.fields && embed.fields.length > 0) { %>
+                                                                            <div class="grid grid-cols-1 gap-2 mt-2">
+                                                                                <% embed.fields.forEach(field => { %>
+                                                                                    <div class="<%= field.inline ? 'inline-block mr-4' : '' %>">
+                                                                                        <div class="text-white font-semibold text-sm">
+                                                                                            <%= field.name %>
+                                                                                        </div>
+                                                                                        <div class="text-gray-300 text-sm">
+                                                                                            <%= field.value %>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <% }); %>
+                                                                            </div>
+                                                                            <% } %>
+                                                    </div>
+                                                    <% }); %>
+                                            </div>
+                                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <% }); %>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="glass-effect rounded-b-xl p-4 border border-gray-700 border-t-0 text-center">
+        <p class="text-gray-400 text-sm">
+            <i class="fas fa-shield-alt mr-2"></i> Transcript được tạo bởi Ticket System v2.0 •
+            <span class="text-blue-400"><%= transcript.messages.length %></span> tin nhắn được lưu trữ
+        </p>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-semibold text-white">📥 Export Transcript</h3>
+            <button onclick="closeExportModal()" class="text-gray-400 hover:text-gray-200">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-gray-300 mb-2">Format:</label>
+                <select id="exportFormat" class="w-full bg-gray-700 text-white rounded-lg p-3 border border-gray-600">
+                    <option value="html">HTML (Web Page)</option>
+                    <option value="json">JSON (Raw Data)</option>
+                    <option value="txt">TXT (Plain Text)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-300 mb-2">Tùy chọn:</label>
+                <div class="space-y-2">
+                    <label class="flex items-center text-gray-300">
+                        <input type="checkbox" id="includeAttachments" class="mr-2" checked>
+                        Bao gồm attachments
+                    </label>
+                    <label class="flex items-center text-gray-300">
+                        <input type="checkbox" id="includeEmbeds" class="mr-2" checked>
+                        Bao gồm embeds
+                    </label>
+                    <label class="flex items-center text-gray-300">
+                        <input type="checkbox" id="includeTimestamps" class="mr-2" checked>
+                        Bao gồm timestamps
+                    </label>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="downloadTranscript()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-download mr-2"></i>
+                    Download
+                </button>
+                <button onclick="closeExportModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    Hủy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Color generator for usernames
+    function getUserColor(username) {
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+        let hash = 0;
+        for (let i = 0; i < username.length; i++) {
+            hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    // Export functionality
+    function exportTranscript() {
+        document.getElementById('exportModal').classList.add('show');
+    }
+
+    function closeExportModal() {
+        document.getElementById('exportModal').classList.remove('show');
+    }
+
+    function downloadTranscript() {
+        const format = document.getElementById('exportFormat').value;
+        const options = {
+            includeAttachments: document.getElementById('includeAttachments').checked,
+            includeEmbeds: document.getElementById('includeEmbeds').checked,
+            includeTimestamps: document.getElementById('includeTimestamps').checked
+        };
+
+        const transcriptData = <%- JSON.stringify(transcript) %>;
+        let content = '';
+        let filename = `transcript-${transcriptData.channelName}-${new Date().toISOString().split('T')[0]}`;
+
+        switch (format) {
+            case 'html':
+                content = generateHTMLExport(transcriptData, options);
+                filename += '.html';
+                break;
+            case 'json':
+                content = JSON.stringify(transcriptData, null, 2);
+                filename += '.json';
+                break;
+            case 'txt':
+                content = generateTextExport(transcriptData, options);
+                filename += '.txt';
+                break;
+        }
+
+        downloadFile(content, filename, format === 'html' ? 'text/html' : 'text/plain');
+        closeExportModal();
+    }
+
+    function generateHTMLExport(data, options) {
+        let html = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcript - ${data.channelName}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #36393f; color: #dcddde; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #2f3136; border-radius: 8px; overflow: hidden; }
+        .header { background: #202225; padding: 20px; border-bottom: 1px solid #40444b; }
+        .message { padding: 10px 20px; border-bottom: 1px solid rgba(64, 68, 75, 0.3); display: flex; }
+        .message:hover { background: rgba(64, 68, 75, 0.3); }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; }
+        .username { font-weight: 600; margin-right: 10px; }
+        .timestamp { font-size: 12px; color: #72767d; }
+        .content { margin-top: 5px; word-wrap: break-word; }
+        .attachment { background: #40444b; padding: 10px; border-radius: 4px; margin: 5px 0; }
+        .embed { border-left: 4px solid #7289da; background: #2f3136; padding: 15px; margin: 5px 0; border-radius: 0 4px 4px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>${data.channelName}</h1>
+            <p>Transcript tạo lúc: ${new Date(data.createdAt).toLocaleString('vi-VN')}</p>
+        </div>
+        <div class="messages">`;
+
+        data.messages.forEach(message => {
+                    html += `
+        <div class="message">
+            <img class="avatar" src="${message.author.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="${message.author.username}">
+            <div>
+                <div>
+                    <span class="username" style="color: ${getUserColor(message.author.username)}">${message.author.username}#${message.author.discriminator}</span>
+                    ${options.includeTimestamps ? `<span class="timestamp">${new Date(message.timestamp).toLocaleString('vi-VN')}</span>` : ''}
+                </div>
+                <div class="content">${message.content}</div>`;
+
+        if (options.includeAttachments && message.attachments?.length > 0) {
+            message.attachments.forEach(attachment => {
+                html += `<div class="attachment">📎 <a href="${attachment.url}" target="_blank">${attachment.name}</a></div>`;
+            });
+        }
+
+        if (options.includeEmbeds && message.embeds?.length > 0) {
+            message.embeds.forEach(embed => {
+                html += `<div class="embed">`;
+                if (embed.title) html += `<h4>${embed.title}</h4>`;
+                if (embed.description) html += `<p>${embed.description}</p>`;
+                html += `</div>`;
+            });
+        }
+
+        html += `</div></div>`;
+    });
+
+    html += `</div></div></body></html>`;
+    return html;
+}
+
+function generateTextExport(data, options) {
+    let text = `Transcript: ${data.channelName}\n`;
+    text += `Tạo lúc: ${new Date(data.createdAt).toLocaleString('vi-VN')}\n`;
+    text += `Số tin nhắn: ${data.messages.length}\n`;
+    text += '='.repeat(50) + '\n\n';
+
+    data.messages.forEach(message => {
+        text += `${message.author.username}#${message.author.discriminator}`;
+        if (options.includeTimestamps) {
+            text += ` - ${new Date(message.timestamp).toLocaleString('vi-VN')}`;
+        }
+        text += '\n' + message.content + '\n';
+        
+        if (options.includeAttachments && message.attachments?.length > 0) {
+            message.attachments.forEach(attachment => {
+                text += `📎 Attachment: ${attachment.name} (${attachment.url})\n`;
+            });
+        }
+        
+        text += '\n';
+    });
+
+    return text;
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+}
+
+function printTranscript() {
+    window.print();
+}
+
+// Apply user colors on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const usernames = document.querySelectorAll('.transcript-username');
+    usernames.forEach(element => {
+        const username = element.textContent.split('#')[0];
+        element.style.color = getUserColor(username);
+    });
+});
+</script>
