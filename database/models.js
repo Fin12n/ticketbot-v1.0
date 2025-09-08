@@ -254,10 +254,10 @@ class DatabaseManager {
         try {
             await sequelize.authenticate();
             console.log('✅ Database connection established successfully.');
-
+            
             await sequelize.sync();
             console.log('✅ Database models synchronized.');
-
+            
             return true;
         } catch (error) {
             console.error('❌ Unable to connect to database:', error);
@@ -284,11 +284,11 @@ class DatabaseManager {
                 where: { guild_id: guildId },
                 defaults: { guild_id: guildId, ...updates }
             });
-
+            
             if (!created) {
                 await settings.update(updates);
             }
-
+            
             return settings;
         } catch (error) {
             console.error('Error updating guild settings:', error);
@@ -302,15 +302,15 @@ class DatabaseManager {
             const guildSettings = await this.getGuildSettings(ticketData.guild_id);
             const ticketNumber = (guildSettings.ticket_counter || 0) + 1;
             const ticketId = `#${ticketNumber.toString().padStart(6, '0')}`;
-
+            
             const ticket = await Ticket.create({
                 ...ticketData,
                 ticket_id: ticketId
             });
-
+            
             // Update counter
             await guildSettings.update({ ticket_counter: ticketNumber });
-
+            
             return ticket;
         } catch (error) {
             console.error('Error creating ticket:', error);
@@ -321,8 +321,7 @@ class DatabaseManager {
     async getTicket(channelId) {
         try {
             return await Ticket.findOne({
-                where: { channel_id: channelId, status: {
-                        [Sequelize.Op.ne]: 'closed' } }
+                where: { channel_id: channelId, status: { [Sequelize.Op.ne]: 'closed' } }
             });
         } catch (error) {
             console.error('Error getting ticket:', error);
@@ -332,10 +331,9 @@ class DatabaseManager {
 
     async getActiveTickets(guildId = null) {
         try {
-            const where = { status: {
-                    [Sequelize.Op.ne]: 'closed' } };
+            const where = { status: { [Sequelize.Op.ne]: 'closed' } };
             if (guildId) where.guild_id = guildId;
-
+            
             return await Ticket.findAll({ where });
         } catch (error) {
             console.error('Error getting active tickets:', error);
@@ -348,12 +346,12 @@ class DatabaseManager {
             const ticket = await Ticket.findOne({
                 where: { channel_id: channelId }
             });
-
+            
             if (ticket) {
                 await ticket.update(updates);
                 return ticket;
             }
-
+            
             return null;
         } catch (error) {
             console.error('Error updating ticket:', error);
@@ -366,7 +364,7 @@ class DatabaseManager {
             const ticket = await Ticket.findOne({
                 where: { channel_id: channelId }
             });
-
+            
             if (ticket) {
                 await ticket.update({
                     status: 'closed',
@@ -375,7 +373,7 @@ class DatabaseManager {
                 });
                 return ticket;
             }
-
+            
             return null;
         } catch (error) {
             console.error('Error closing ticket:', error);
@@ -399,9 +397,7 @@ class DatabaseManager {
         try {
             return await TicketMessage.findAll({
                 where: { ticket_id: ticketId },
-                order: [
-                    ['timestamp', 'ASC']
-                ]
+                order: [['timestamp', 'ASC']]
             });
         } catch (error) {
             console.error('Error getting ticket messages:', error);
@@ -413,18 +409,15 @@ class DatabaseManager {
         try {
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - days);
-
+            
             const stats = await TicketStats.findAll({
                 where: {
                     guild_id: guildId,
-                    date: {
-                        [Sequelize.Op.gte]: startDate }
+                    date: { [Sequelize.Op.gte]: startDate }
                 },
-                order: [
-                    ['date', 'ASC']
-                ]
+                order: [['date', 'ASC']]
             });
-
+            
             return stats;
         } catch (error) {
             console.error('Error getting ticket stats:', error);
@@ -435,7 +428,7 @@ class DatabaseManager {
     async updateDailyStats(guildId, statsUpdate) {
         try {
             const today = new Date().toISOString().split('T')[0];
-
+            
             const [stats, created] = await TicketStats.findOrCreate({
                 where: {
                     guild_id: guildId,
@@ -447,15 +440,15 @@ class DatabaseManager {
                     ...statsUpdate
                 }
             });
-
+            
             if (!created) {
                 const updates = {};
                 Object.keys(statsUpdate).forEach(key => {
-                    updates[key] = stats[key] + statsUpdate[key];
+                    updates[key] = (stats[key] || 0) + statsUpdate[key];
                 });
                 await stats.update(updates);
             }
-
+            
             return stats;
         } catch (error) {
             console.error('Error updating daily stats:', error);
@@ -468,19 +461,18 @@ class DatabaseManager {
             // Clean up old closed tickets (older than 30 days)
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+            
             const deletedCount = await Ticket.destroy({
                 where: {
                     status: 'closed',
-                    closed_at: {
-                        [Sequelize.Op.lt]: thirtyDaysAgo }
+                    closed_at: { [Sequelize.Op.lt]: thirtyDaysAgo }
                 }
             });
-
+            
             if (deletedCount > 0) {
                 console.log(`🗑️ Cleaned up ${deletedCount} old tickets`);
             }
-
+            
             return deletedCount;
         } catch (error) {
             console.error('Error during cleanup:', error);

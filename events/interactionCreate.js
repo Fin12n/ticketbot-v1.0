@@ -52,12 +52,17 @@ module.exports = {
 
 async function handleCreateTicket(interaction, client) {
     // Check if user already has an open ticket
-    const existingTicket = Array.from(client.config.activeTickets.values())
-        .find(ticket => ticket.userId === interaction.user.id && ticket.guildId === interaction.guild.id);
+    const existingTicket = await client.db.models.Ticket.findOne({
+        where: { 
+            user_id: interaction.user.id,
+            guild_id: interaction.guild.id,
+            status: ['open', 'claimed']
+        }
+    });
 
     if (existingTicket) {
         return interaction.reply({
-            content: `❌ Bạn đã có một ticket mở tại <#${existingTicket.channelId}>!`,
+            content: `❌ Bạn đã có một ticket mở tại <#${existingTicket.channel_id}>!`,
             ephemeral: true
         });
     }
@@ -84,28 +89,25 @@ async function handleCreateTicket(interaction, client) {
             category.id
         );
 
-        // Generate ticket ID
-        const ticketId = `#${Date.now().toString().slice(-6)}`;
-
-        // Store ticket data
-        client.config.activeTickets.set(ticketChannel.id, {
-            channelId: ticketChannel.id,
-            userId: interaction.user.id,
-            guildId: interaction.guild.id,
-            ticketId: ticketId,
-            createdAt: Date.now(),
-            claimedBy: null,
-            claimedAt: null
+        // Create ticket in database
+        const ticket = await client.db.createTicket({
+            guild_id: interaction.guild.id,
+            channel_id: ticketChannel.id,
+            user_id: interaction.user.id,
+            status: 'open'
         });
 
+        if (!ticket) {
+            throw new Error('Failed to create ticket in database');
+        }
+
         // Update stats
-        client.config.ticketStats.total++;
-        client.config.ticketStats.open++;
+        await client.utils.updateGuildStats(interaction.guild.id, { tickets_created: 1 });
 
         // Send welcome message in ticket
         const welcomeEmbed = client.utils.createTicketEmbed('created', {
             user: interaction.user,
-            ticketId: ticketId
+            ticketId: ticket.ticket_id
         });
 
         const controlButtons = client.utils.createButtons('ticket_controls');
@@ -129,7 +131,7 @@ async function handleCreateTicket(interaction, client) {
 }
 
 async function handleClaimTicket(interaction, client) {
-    if (!client.utils.isStaff(interaction.member)) {
+    if (!(await client.utils.isStaff(interaction.member))) {
         return interaction.reply({
             content: '❌ Chỉ staff mới có thể claim ticket!',
             ephemeral: true
@@ -137,17 +139,17 @@ async function handleClaimTicket(interaction, client) {
     }
 
     const channel = interaction.channel;
-    const ticketData = client.config.activeTickets.get(channel.id);
+    const ticket = await client.db.getTicket(channel.id);
 
-    if (!ticketData) {
+    if (!ticket) {
         return interaction.reply({
             content: '❌ Không tìm thấy dữ liệu ticket!',
             ephemeral: true
         });
     }
 
-    if (ticketData.claimedBy) {
-        const claimedUser = await client.users.fetch(ticketData.claimedBy);
+    if (ticket.claimed_by) {
+        const claimedUser = await client.users.fetch(ticket.claimed_by);
         return interaction.reply({
             content: `❌ Ticket này đã được claim bởi ${claimedUser.username}!`,
             ephemeral: true
@@ -155,12 +157,14 @@ async function handleClaimTicket(interaction, client) {
     }
 
     // Update ticket data
-    ticketData.claimedBy = interaction.user.id;
-    ticketData.claimedAt = Date.now();
-    client.config.activeTickets.set(channel.id, ticketData);
+    await client.db.updateTicket(channel.id, {
+        claimed_by: interaction.user.id,
+        claimed_at: new Date(),
+        status: 'claimed'
+    });
 
     // Update stats
-    client.config.ticketStats.claimed++;
+    await client.utils.updateGuildStats(interaction.guild.id, { tickets_claimed: 1 });
 
     const embed = client.utils.createTicketEmbed('claimed', {
         staff: interaction.user
@@ -197,7 +201,7 @@ async function handleCloseTicket(interaction, client) {
 }
 
 async function handleTranscriptTicket(interaction, client) {
-    if (!client.utils.isStaff(interaction.member)) {
+    if (!(await client.utils.isStaff(interaction.member))) {
         return interaction.reply({
             content: '❌ Chỉ staff mới có thể lấy transcript!',
             ephemeral: true
@@ -208,7 +212,7 @@ async function handleTranscriptTicket(interaction, client) {
         await interaction.deferReply({ ephemeral: true });
 
         const transcriptId = await client.utils.generateTranscript(interaction.channel);
-        const transcriptUrl = `${process.env.WEBSITE_URL}/transcript/${transcriptId}`;
+        const transcriptUrl = `${process.env.WEBSITE_URL || 'http://localhost:3000'}/transcript/${transcriptId}`;
 
         await interaction.editReply({
             content: `📄 **Transcript đã được tạo!**\n🔗 Link: ${transcriptUrl}`
@@ -223,9 +227,9 @@ async function handleTranscriptTicket(interaction, client) {
 
 async function handleConfirmClose(interaction, client) {
     const channel = interaction.channel;
-    const ticketData = client.config.activeTickets.get(channel.id);
+    const ticket = await client.db.getTicket(channel.id);
 
-    if (!ticketData) {
+    if (!ticket) {
         return interaction.reply({
             content: '❌ Không tìm thấy dữ liệu ticket!',
             ephemeral: true
@@ -236,22 +240,24 @@ async function handleConfirmClose(interaction, client) {
         // Generate transcript before closing
         const transcriptId = await client.utils.generateTranscript(channel);
 
-        // Update stats
-        client.config.ticketStats.closed++;
-        client.config.ticketStats.open--;
+        // Close ticket in database
+        await client.db.closeTicket(channel.id, interaction.user.id);
 
-        // Remove from active tickets
-        client.config.activeTickets.delete(channel.id);
+        // Update stats
+        await client.utils.updateGuildStats(interaction.guild.id, { tickets_closed: 1 });
 
         // Send transcript to ticket creator if possible
         try {
-            const user = await client.users.fetch(ticketData.userId);
-            const transcriptUrl = `${process.env.WEBSITE_URL}/transcript/${transcriptId}`;
+            const user = await client.users.fetch(ticket.user_id);
+            const transcriptUrl = `${process.env.WEBSITE_URL || 'http://localhost:3000'}/transcript/${transcriptId}`;
 
             const embed = new EmbedBuilder()
                 .setTitle('📄 Transcript Ticket')
                 .setDescription(`Ticket của bạn đã được đóng. Đây là transcript:`)
-                .addFields({ name: '🆔 Ticket ID', value: ticketData.ticketId, inline: true }, { name: '🔗 Link Transcript', value: `[Xem Transcript](${transcriptUrl})`, inline: true })
+                .addFields(
+                    { name: '🆔 Ticket ID', value: ticket.ticket_id, inline: true },
+                    { name: '🔗 Link Transcript', value: `[Xem Transcript](${transcriptUrl})`, inline: true }
+                )
                 .setColor('#4ecdc4')
                 .setFooter({ text: 'Ticket System v2.0' })
                 .setTimestamp();
@@ -263,7 +269,7 @@ async function handleConfirmClose(interaction, client) {
 
         await interaction.reply('🔒 Ticket sẽ bị đóng trong 5 giây...');
 
-        setTimeout(async() => {
+        setTimeout(async () => {
             try {
                 await channel.delete();
             } catch (error) {
